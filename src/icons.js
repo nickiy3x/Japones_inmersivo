@@ -46,9 +46,4 @@ const vectorIcon = (()=>{
   return f;
 })();
 
-function I(name, options = {}) {
-  const src = TEAM_ICONS[name];
-  const size = options.s || 24;
-  return src ? '<img class="team-icon" src="' + src + '" width="' + size + '" height="' + size + '" alt="">' : vectorIcon(name, options);
-}
-I.fill = vectorIcon.fill;
+const I = vectorIcon;

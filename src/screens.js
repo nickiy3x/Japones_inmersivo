@@ -48,17 +48,19 @@ function back(){ const r=HIST.pop(); if(r) go(r.name,r,false); else go(G.registe
 const SCREENS={};
 
 SCREENS.splash=()=>{
-  mount(`<div class="splash-brand">Japonés en contexto</div><div class="scroll">
+  mount(`<div class="scroll">
     <div class="splash-art"><img src="${IMG.inicio}" alt="Ilustración de Japón al atardecer"></div>
-    <div class="pad splash-copy">
+    <div class="pad" style="margin-top:-28px;position:relative">
       <button class="play-pill" data-act="say" data-m="ようこそ！">${I('sound',{s:18})} Escuchar</button>
       <div class="hello mt3">ようこそ！</div>
       <div class="t-h2 mt2">Practica japonés en contexto</div>
+      <p class="muted t-body mt2">Conversa con personajes en escenas cotidianas de Japón. Habla o escribe: te acompañamos con pistas y correcciones.</p>
     </div></div>
     <div class="sticky-cta btn-stack">
       <button class="btn btn-primary" data-act="go" data-to="login">Empezar</button>
       <button class="btn btn-secondary" data-act="haveAccount">Ya tengo cuenta</button>
-    </div>`,'splash-screen');
+      <button class="t-sm faint" style="margin-top:4px" data-act="go" data-to="guide">Ver guía de diseño UI</button>
+    </div>`);
 };
 
 SCREENS.login=()=>{
@@ -105,69 +107,41 @@ SCREENS.onb3=()=>{
 };
 
 /* ---------- Home con pestañas ---------- */
-const TABS=[
-  ['lessons','gorro-de-graduacion','gorro-de-graduacion relleno','Lecciones'],
-  ['practice','conversacion lineas','conversacion relleno','Práctica'],
-  ['dict','libro-alt','libro-alt (1)','Diccionario'],
-  ['profile','usuario','usuario relleno','Perfil']
-];
-const QUICK_SCENARIOS=[
-  ['Presentarte','intro'],
-  ['De compras'],
-  ['Charla matutina'],
-  ['Con un amigo']
-];
+const TABS=[['lessons','cap','Lecciones'],['practice','chat','Práctica'],['dict','dict','Diccionario'],['profile','user','Perfil']];
 SCREENS.home=(p)=>{
   const tab=p.tab||'practice';
   const body={lessons:tabLessons,practice:tabPractice,dict:tabDict,profile:tabProfile}[tab]();
-  mount(`<header class="home-brand">Japonés en contexto</header>
-   <div class="scroll home-content">${body}</div>
-   ${tab==='practice'?'':`<button class="fab" data-act="talk">${I('mic',{s:20})} Hablar <span class="jp">話す</span></button>`}
-   <nav class="tabbar" aria-label="Navegación principal">${TABS.map(([id,outline,filled,label])=>{
-     const active=id===tab;
-     const icon=encodeURIComponent(active?filled:outline);
-     return `<button class="${active?'act':''}" ${active?'aria-current="page"':''} data-act="tab" data-tab="${id}"><img class="tab-icon" src="${assetUrl('RECURSOS/4.%20iconos/'+icon+'.png')}" width="25" height="25" alt="">${label}</button>`;
-   }).join('')}</nav>`,'with-tabbar'+(tab==='practice'?' practice-home':''));
+  mount(`<div class="scroll">${body}</div>
+   <button class="fab" data-act="talk">${I('mic',{s:20})} Hablar <span class="jp">話す</span></button>
+   <nav class="tabbar">${TABS.map(t=>`<button class="${t[0]===tab?'act':''}" ${t[0]===tab?'aria-current="page"':''} data-act="tab" data-tab="${t[0]}">${I(t[1])}${t[2]}</button>`).join('')}</nav>`,'with-tabbar');
   if(tab==='dict') bindDict();
 };
-function quickScenario([title,topic]){
-  return topic
-    ? `<button data-act="talk" data-topic="${topic}">${title}</button>`
-    : `<button disabled>${title}<small>Próximamente</small></button>`;
-}
+function greetDate(){ const d=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'short'}); return d.charAt(0).toUpperCase()+d.slice(1); }
 function tabPractice(){
+  const n=G.user.name?.trim()||'invitado'; const R=G.resume;
   const streak=currentStreak();
-  const name=G.user.name?.trim()||'invitado';
-  return `<main class="practice-dashboard">
-    <div class="practice-title"><div class="grow"><h1>Práctica</h1><p class="practice-greeting">Hola, ${esc(name)}</p></div>
-      <div class="practice-streak">${I('fire',{s:25})}<span>Racha · ${streak} ${streak===1?'día':'días'}</span></div>
+  const done=R?Object.keys(R.done).length:0;
+  return `<div class="home-top"><div class="avatar">${esc(n[0].toUpperCase())}</div><div class="grow"><div class="t-h2">Hola, ${esc(n)}</div><div class="t-sm faint">${greetDate()}</div></div><div class="streak" title="Racha de días">${I('flame',{s:18})}<span style="color:var(--coral-700)">${streak}</span> ${streak===1?'día':'días'}</div></div>
+  <div class="pad mt4">
+    <button class="feat" data-act="go" data-to="ficha"><img src="${IMG.fachada}" alt="Fachada de Maruya Shokudō"><span class="chip dark">Escenario 1 · Vida cotidiana</span>
+      <div class="in"><div class="t-cap" style="color:rgba(255,255,255,.75)">まるや食堂 · Maruya Shokudō</div><div class="t-h1 mt1">Tu primer pedido en Tokio</div>
+      <div class="t-sm mt1" style="opacity:.85">Principiante · 10 min · 5 misiones</div>
+      <div class="row mt3"><div class="progress grow"><b style="width:${done*20}%"></b></div><span class="t-sm" style="font-weight:900">${done}/5</span></div></div></button>
+    ${R?`<button class="li mt3" data-act="resume"><span class="ico" style="background:var(--coral-50);color:var(--coral-700)">${I('refresh')}</span><span class="grow"><b>Continúa con tu actividad</b><br><span class="t-sm muted">Misión ${Math.min(done+1,5)} · ${MISSIONS[Math.min(done,4)].title}</span></span>${I('chev')}</button>`:''}
+    <div class="sec-ttl"><div class="t-h2">Modos de práctica</div></div>
+    <div class="modes">
+      <button class="mode" style="background:var(--lav)" data-act="talk"><span class="k">話</span>${I('chat')}<span><b>Conversación libre</b><br><span class="t-sm muted">Voz o texto con Sofía</span></span></button>
+      <button class="mode" style="background:var(--peach)" data-act="write"><span class="k">書</span>${I('pen')}<span><b>Escritura libre</b><br><span class="t-sm muted">Chat con corrección</span></span></button>
+      <button class="mode" style="background:var(--coral-50)" data-act="go" data-to="ficha"><span class="k">役</span>${I('mask')}<span><b>Juego de rol</b><br><span class="t-sm muted">Escenarios con misiones</span></span></button>
+      <button class="mode locked" style="background:var(--sand)" data-act="toast" data-t="La entrevista se desbloquea en nivel N4."><span class="k">面</span>${I('lock')}<span><b>Entrevista</b><br><span class="t-sm muted">Nivel N4</span></span></button>
     </div>
-    <section>
-      <h2>Modos de práctica</h2>
-      <div class="practice-modes">
-        <button data-act="talk">Conversación ${I('chev',{s:15})}</button>
-        <button data-act="go" data-to="ficha">Juego de rol ${I('chev',{s:15})}</button>
-        <button data-act="write">Escritura ${I('chev',{s:15})}</button>
-        <button disabled>Entrevista <small>Pronto</small></button>
-      </div>
-    </section>
-    <section>
-      <h2>Escenarios rápidos</h2>
-      <div class="quick-scenarios">
-        ${QUICK_SCENARIOS.slice(0,2).map(quickScenario).join('')}
-        <button data-act="quickAll">Ver todos</button>
-      </div>
-    </section>
-    <section class="practice-daily">
-      <h2>Vida cotidiana</h2>
-      <button class="practice-restaurant" data-act="go" data-to="ficha">
-        <span class="practice-restaurant-photo"><img src="${IMG.fachada}" alt="Fachada de Maruya Shokudō"></span>
-        <span class="practice-restaurant-label"><span><b>Restaurante en Tokio</b><small>1 actividad · 5 misiones</small></span>${I('chev',{s:16})}</span>
-      </button>
-      <button class="practice-resume" data-act="resume" ${G.resume?'':'disabled'}>Retomar actividad en curso</button>
-      <button class="practice-talk" data-act="talk">Iniciar charla libre</button>
-    </section>
-  </main>`;
+    <div class="sec-ttl"><div class="t-h2">Escenarios rápidos</div><span class="t-sm faint">3–5 min</span></div>
+    <div class="hscroll">
+      <button class="qs" data-act="talk" data-topic="intro"><div class="jp">自己紹介</div><b class="t-sm">Presentarte</b><div class="t-sm faint">Disponible</div></button>
+      ${[['買い物','De compras'],['朝の会話','Charla matutina'],['友達と','Con un amigo']].map(q=>`<button class="qs locked" data-act="toast" data-t="Próximamente: ${q[1]}."><div class="jp">${q[0]}</div><b class="t-sm">${q[1]}</b><div class="t-sm faint">Próximamente</div></button>`).join('')}
+    </div>
+    <p class="t-sm faint">Debate y Discusión se activan desde el nivel N4.</p>
+  </div>`;
 }
 function tabLessons(){
   return `<div class="pad"><div class="row" style="padding-top:20px"><div class="t-display grow">Lecciones</div><span class="chip coral">${I('globe',{s:16})} 日本語</span></div>
@@ -266,8 +240,7 @@ SCREENS.activity=(p)=>{
 };
 function renderProg(popId){
   const S=CUR.S, act=S.ended?null:activeMission(S);
-  const labels=['Ent.','Menú','Ingr.','Ped.','Cta.'];
-  $('#prog').innerHTML=MISSIONS.map((m,i)=>`<div class="st ${S.done[m.id]?'done':''} ${m.id===act?'cur':''} ${m.id===popId?'pop':''}" title="${m.title}"><span class="bar"><span class="sr-only">${m.title} · ${S.done[m.id]?'completada':m.id===act?'en curso':'pendiente'}</span><span aria-hidden="true">${labels[i]}</span></span></div>`).join('');
+  $('#prog').innerHTML=MISSIONS.map(m=>`<div class="st ${S.done[m.id]?'done':''} ${m.id===act?'cur':''} ${m.id===popId?'pop':''}" title="${m.title}"><div class="bar">${S.done[m.id]?I('check',{s:16,w:3}):I(m.icon,{s:16})}</div>${m.label}</div>`).join('');
 }
 function renderMhead(intro){
   const S=CUR.S, el=$('#mhead'); if(!el) return;
@@ -731,7 +704,6 @@ const ACT={
   testMic:async()=>{ try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(t=>t.stop()); toast('Micrófono listo ✓'); }catch(e){ toast('Sin micrófono en esta vista: usarás el modo Escribir (o la voz simulada).'); } },
   finishOnb:()=>{ G.registered=true; save(); HIST.length=0; go('home',{tab:'practice'}); },
   tab:a=>go('home',{tab:a.dataset.tab},false), homeTab:a=>{HIST.length=0;go('home',{tab:a.dataset.tab},false);},
-  quickAll:()=>sheet('Escenarios rápidos',`<div class="quick-scenarios">${QUICK_SCENARIOS.map(quickScenario).join('')}</div>`,'quick-scenarios'),
   talk:a=>go('chat',{kind:'talk',topic:a.dataset.topic}), write:()=>go('chat',{kind:'write'}),
   topic:a=>go('chat',{kind:CUR&&CUR.write?'write':'talk',topic:a.dataset.id},false),
   startScenario:()=>{ G.resume=null; save(); go('activity',{}); },
