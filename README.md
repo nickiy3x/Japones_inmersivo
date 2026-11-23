@@ -28,7 +28,7 @@ git remote add origin https://github.com/TU_USUARIO/japones-en-contexto.git
 git push -u origin main
 ```
 
-Conserva en el repositorio `src/`, `RECURSOS/3.Escenarios/`, `RECURSOS/4. iconos/` y `RECURSOS/6.Tipografia_fuente/`. Los nombres de archivos coinciden exactamente con las rutas de la web, incluidas las tildes, los espacios y las mayúsculas. El archivo `.gitignore` excluye los materiales de referencia y los archivos de trabajo de Illustrator.
+Conserva `src/` en la raíz. Para Streamlit, puedes subir `3.Escenarios/`, `4. iconos/` y `6.Tipografia_fuente/` por separado en la raíz o dentro de `RECURSOS/`. Para abrir `index.html` directamente, usa la estructura original con `RECURSOS/`. Respeta los nombres exactos, incluidas las tildes, los espacios y las mayúsculas. El archivo `.gitignore` excluye los materiales de referencia y los archivos de trabajo de Illustrator.
 
 ## Publicar en Streamlit Community Cloud
 
@@ -38,5 +38,7 @@ Conserva en el repositorio `src/`, `RECURSOS/3.Escenarios/`, `RECURSOS/4. iconos
 4. Abre el enlace generado en un celular. Comprueba el registro de invitado, los íconos de navegación, la carta de Maruya, la conversación y el cierre del escenario. Recarga la misma URL y comprueba que se conserva el progreso.
 
 [Guía oficial de despliegue](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)
+
+Si el despliegue indica que falta el CSS, ejecuta `git ls-tree -r --name-only HEAD -- src/styles.css` en el repositorio conectado. Debe devolver exactamente `src/styles.css`. Si la salida está vacía, añade ese archivo, haz el commit y sube la rama que usa Streamlit. El empaquetador obtiene la ruta desde `index.html` y distingue mayúsculas y minúsculas también en Windows.
 
 El progreso del archivo local y el de la URL publicada se guardan por separado, porque el navegador usa un almacenamiento por origen. Para una futura versión con API, guarda las credenciales en los secretos del servicio.
