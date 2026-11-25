@@ -373,3 +373,16 @@ pre.json{background:#231a21;color:#F6E7DA;border-radius:var(--r-md);padding:var(
 .order-state { display: block; color: var(--ink-3); font-size: .75rem; font-weight: 800; padding-block: 2px; }
 .served-card { position: absolute; z-index: 2; left: 14px; top: 44px; max-width: 70%; background: var(--sand-50); border-radius: 14px; padding: 6px 12px; text-align: left; }
 .menu-shortcut { min-height: 36px; padding: 0 12px; margin-bottom: 6px; border-radius: 12px; background: var(--coral); font-weight: 800; }
+
+.tour-help{width:34px;height:34px;background:var(--lav-50);color:var(--lav-700);font-weight:900}
+.guided-tour{position:fixed;inset:0;z-index:100;pointer-events:none}
+.tour-shade{position:absolute;inset:0;background:rgba(34,21,40,.72);clip-path:var(--spotlight);pointer-events:auto}
+.tour-card{position:absolute;overflow:auto;overscroll-behavior:contain;padding:14px 16px;border-radius:18px;background:var(--surface);color:var(--ink);box-shadow:var(--sh-3);pointer-events:auto}
+.tour-card h2{font-size:19px;line-height:1.2;margin:3px 0 6px}
+.tour-card p{font-size:14px;line-height:1.45;margin:0 0 8px}
+.tour-count{font-size:12px;font-weight:900;color:var(--lav-700)}
+.tour-controls{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.tour-controls button,.tour-audio{min-height:42px;padding:0 9px;font-weight:900;border-radius:11px}
+.tour-controls [data-tour-action="skip"]{margin-right:auto}
+.tour-controls button.tour-next{padding-inline:12px;background:var(--coral)}
+.tour-audio{min-height:34px;background:var(--lav-50);margin-bottom:6px}

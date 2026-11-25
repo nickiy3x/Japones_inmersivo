@@ -1,5 +1,5 @@
 /**
- * Punto de conexión del backend. Escritura y voz confirmada entregan
+ * Punto de conexión del backend. Escritura y voz transcrita entregan
  * el mismo objeto { text, channel, scenario, session } a sendTurn.
  * Un adaptador remoto enviará el turno y aplicará la respuesta validada
  * al estado local. La transcripción y la síntesis se conectan aquí.

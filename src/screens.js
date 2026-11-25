@@ -39,7 +39,7 @@ function speak(m,slow,btn){
 
 /* ---------- Navegación ---------- */
 const HIST=[];
-function go(name,p={},push=true){ if(push&&ROUTE) HIST.push(ROUTE); ROUTE=Object.assign({name},p); if(CUR&&CUR.dispose){CUR.dispose();CUR=null;} if('speechSynthesis' in window) try{speechSynthesis.cancel()}catch(e){} SCREENS[name](p); }
+function go(name,p={},push=true){ finishTour(); if(push&&ROUTE) HIST.push(ROUTE); ROUTE=Object.assign({name},p); if(CUR&&CUR.dispose){CUR.dispose();CUR=null;} if('speechSynthesis' in window) try{speechSynthesis.cancel()}catch(e){} SCREENS[name](p); }
 function back(){ const r=HIST.pop(); if(r) go(r.name,r,false); else go(G.registered?'home':'splash',{},false); }
 
 /* =========================================================
@@ -115,15 +115,16 @@ SCREENS.home=(p)=>{
    <button class="fab" data-act="talk">${I('mic',{s:20})} Hablar <span class="jp">話す</span></button>
    <nav class="tabbar">${TABS.map(t=>`<button class="${t[0]===tab?'act':''}" ${t[0]===tab?'aria-current="page"':''} data-act="tab" data-tab="${t[0]}">${I(t[1])}${t[2]}</button>`).join('')}</nav>`,'with-tabbar');
   if(tab==='dict') bindDict();
+  if(tab==='practice'&&!G.user.tours?.practice) startTour('practice');
 };
 function greetDate(){ const d=new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'short'}); return d.charAt(0).toUpperCase()+d.slice(1); }
 function tabPractice(){
   const n=G.user.name?.trim()||'invitado'; const R=G.resume;
   const streak=currentStreak();
   const done=R?Object.keys(R.done).length:0;
-  return `<div class="home-top"><div class="avatar">${esc(n[0].toUpperCase())}</div><div class="grow"><div class="t-h2">Hola, ${esc(n)}</div><div class="t-sm faint">${greetDate()}</div></div><div class="streak" title="Racha de días">${I('flame',{s:18})}<span style="color:var(--coral-700)">${streak}</span> ${streak===1?'día':'días'}</div></div>
+  return `<div class="home-top"><div class="avatar">${esc(n[0].toUpperCase())}</div><div class="grow"><div class="t-h2">Hola, ${esc(n)}</div><div class="t-sm faint">${greetDate()}</div></div><div class="streak" title="Racha de días">${I('flame',{s:18})}<span style="color:var(--coral-700)">${streak}</span> ${streak===1?'día':'días'}</div><button class="iconbtn tour-help" data-act="practiceGuide" aria-label="Ver guía de Práctica">?</button></div>
   <div class="pad mt4">
-    <button class="feat" data-act="go" data-to="ficha"><img src="${IMG.fachada}" alt="Fachada de Maruya Shokudō"><span class="chip dark">Escenario 1 · Vida cotidiana</span>
+    <button class="feat" data-tour="restaurant-card" data-act="go" data-to="ficha"><img src="${IMG.fachada}" alt="Fachada de Maruya Shokudō"><span class="chip dark">Escenario 1 · Vida cotidiana</span>
       <div class="in"><div class="t-cap" style="color:rgba(255,255,255,.75)">まるや食堂 · Maruya Shokudō</div><div class="t-h1 mt1">Tu primer pedido en Tokio</div>
       <div class="t-sm mt1" style="opacity:.85">Principiante · 10 min · 5 misiones</div>
       <div class="row mt3"><div class="progress grow"><b style="width:${done*20}%"></b></div><span class="t-sm" style="font-weight:900">${done}/5</span></div></div></button>
@@ -132,7 +133,7 @@ function tabPractice(){
     <div class="modes">
       <button class="mode" style="background:var(--lav)" data-act="talk"><span class="k">話</span>${I('chat')}<span><b>Conversación libre</b><br><span class="t-sm muted">Voz o texto con Sofía</span></span></button>
       <button class="mode" style="background:var(--peach)" data-act="write"><span class="k">書</span>${I('pen')}<span><b>Escritura libre</b><br><span class="t-sm muted">Chat con corrección</span></span></button>
-      <button class="mode" style="background:var(--coral-50)" data-act="go" data-to="ficha"><span class="k">役</span>${I('mask')}<span><b>Juego de rol</b><br><span class="t-sm muted">Escenarios con misiones</span></span></button>
+      <button class="mode" style="background:var(--coral-50)" data-tour="scenario-choice" data-act="go" data-to="ficha"><span class="k">役</span>${I('mask')}<span><b>Juego de rol</b><br><span class="t-sm muted">Escenarios con misiones</span></span></button>
       <button class="mode locked" style="background:var(--sand)" data-act="toast" data-t="La entrevista se desbloquea en nivel N4."><span class="k">面</span>${I('lock')}<span><b>Entrevista</b><br><span class="t-sm muted">Nivel N4</span></span></button>
     </div>
     <div class="sec-ttl"><div class="t-h2">Escenarios rápidos</div><span class="t-sm faint">3–5 min</span></div>
@@ -227,14 +228,22 @@ SCREENS.activity=(p)=>{
   renderProg(); renderComposer();
   window.addEventListener('resize',layoutStage);
   if(S.ended){ finishScenario(true); return; }
-  if(resumed){
+  if(resumed&&(S.sub!=='entry'||S.msgs.length)){
     setScene(sceneFor(S),true); rerenderDialog(); renderMhead(); A.announced.add(activeMission(S));
     pushMsg({t:'sofia',text:'¡Volviste! Seguimos donde quedaste.'});
+    if(!G.user.tours?.restaurant&&lastWaiterIdx()>=0) startTour('restaurant');
   } else {
+    A.busy=true;
+    renderComposer();
     setScene('fachada',true); renderMhead(true);
     A.later(()=>{ setScene('mostrador'); renderMhead(); },1700);
     A.later(()=>{ waiterSay(W.greet); },2500);
-    A.later(()=>{ announce('M1'); },3600);
+    A.later(()=>{
+      announce('M1');
+      A.busy=false;
+      renderComposer();
+      if(!G.user.tours?.restaurant) startTour('restaurant');
+    },3600);
   }
   resetIdle();
 };
@@ -305,11 +314,11 @@ function pushMsg(x){
   requestAnimationFrame(()=>d.scrollTop=d.scrollHeight);
 }
 function waiterSay(l, autoplay=G.user.autoplay){
-  const S=CUR.S, entry=S.sub==='entry';
-  pushMsg({t:'waiter',m:l.m,es:l.es,who:entry?'店員さん · Recepción':'中村さん · Mesero',av:entry?'店':'中'});
+  const S=CUR.S;
+  pushMsg({t:'waiter',m:l.m,es:l.es,who:'中村さん · Mesero',av:'中'});
   S.lastW=l; if(autoplay) speak(l.m);
 }
-function showTyping(){ const d=$('#dlg'); d.insertAdjacentHTML('beforeend',`<div class="typing"><span class="dots"><i></i><i></i><i></i></span> ${CUR.S.sub==='entry'?'店員さん':'中村さん'} está respondiendo…</div>`); d.scrollTop=d.scrollHeight; }
+function showTyping(){ const d=$('#dlg'); d.insertAdjacentHTML('beforeend',`<div class="typing"><span class="dots"><i></i><i></i><i></i></span> 中村さん está respondiendo…</div>`); d.scrollTop=d.scrollHeight; }
 function announce(id){ const A=CUR; if(A.announced.has(id)||A.S.ended) return; A.announced.add(id); pushMsg({t:'sofia',text:SOFIA_INTRO[id]}); renderMhead(); }
 
 /* ----- Turno del usuario ----- */
@@ -332,7 +341,8 @@ async function sendAct(raw, channel='text'){
   if(res.tutor.has_error){ S.corr.push({m:res.tutor.corrected.m,es:res.tutor.corrected.es,exp:res.tutor.explanation_es,said:display}); pushMsg({t:'corr',m:res.tutor.corrected.m,es:res.tutor.corrected.es,exp:res.tutor.explanation_es}); }
   showTyping();
   A.later(()=>{
-    res.replies.forEach(line=>waiterSay(line, G.user.autoplay&&!res.end_scene));
+    const combineVoiceReply=channel==='voice'&&res.followup&&res.replies.length;
+    if(!combineVoiceReply) res.replies.forEach(line=>waiterSay(line, G.user.autoplay&&!res.end_scene));
     res.sofia.forEach(t=>pushMsg({t:'sofia',text:t}));
     if(res.end_scene){
       finishScenario(true);
@@ -351,7 +361,12 @@ async function sendAct(raw, channel='text'){
       if(ev.type==='slow') toast('Audio lento activado (0,7x)');
       if(ev.type==='nudge') pushMsg({t:'sofia',text:'¿Te quedaste en blanco? Te ayudo con una pista.',btn:['Ver pista','hint']});
     });
-    if(res.followup){ const f=res.followup; maxDelay=Math.max(maxDelay,f.delay); A.later(()=>{ waiterSay(f.line); if(f.sofia) pushMsg({t:'sofia',text:f.sofia}); },f.delay); }
+    if(res.followup){
+      const f=res.followup;
+      const line=combineVoiceReply?join(...res.replies,f.line):f.line;
+      maxDelay=Math.max(maxDelay,f.delay);
+      A.later(()=>{ waiterSay(line); if(f.sofia) pushMsg({t:'sofia',text:f.sofia}); },f.delay);
+    }
     const now=activeMission(S);
     if(now!==prevActive&&!S.ended) A.later(()=>announce(now),maxDelay+900);
     A.later(()=>{ A.busy=false; renderComposer(); }, maxDelay+(res.events.some(e=>e.type==='timecut')?1050:0));
@@ -363,14 +378,13 @@ async function sendAct(raw, channel='text'){
 function renderComposer(){
   const A=CUR, c=$('#cmp'); if(!c) return;
   if(A.kind==='chat') return renderChatComposer();
-  const voice=G.user.mode==='voice', S=A.S;
+  const voice=(A.guideMode||G.user.mode)==='voice', S=A.S;
   if(S.ended){ c.innerHTML=`<button class="btn btn-primary" data-act="finishNow">Ver resultados</button>`; return; }
   let top='';
-  if(A.heard) top=heardHTML();
-  else if(A.bigPhrase) top=`<div class="big-phrase"><div class="t-cap">Léela en voz alta</div>${lineHTML(A.bigPhrase,{showEs:true})}<div class="aud" style="justify-content:center"><button data-act="sayBig">${I('play',{s:14})} Escuchar</button></div></div>`;
+  if(A.bigPhrase) top=`<div class="big-phrase"><div class="t-cap">Léela en voz alta</div>${lineHTML(A.bigPhrase,{showEs:true})}<div class="aud" style="justify-content:center"><button data-act="sayBig">${I('play',{s:14})} Escuchar</button></div></div>`;
   if(voice){
     c.innerHTML=(S.done.M2?'<button class="menu-shortcut" data-act="openCarta">Ver carta</button>':'')+top+`<div class="voice-row"><button class="roundbtn hint" data-act="hint" aria-label="Pista">${I('bulb')}<small>Pista</small></button>
-      <div class="col" style="align-items:center;gap:10px"><button class="ptt" id="ptt" aria-label="Mantén para hablar" ${A.busy?'disabled':''}>${I('mic',{s:34})}</button><div class="ptt-lbl" id="pttl">${A.busy?'Esperando respuesta…':'MANTÉN PARA HABLAR'}</div></div>
+      <div class="col" style="align-items:center;gap:10px"><button class="ptt" id="ptt" aria-label="Mantén para hablar" ${A.busy||A.transcribing?'disabled':''}>${I('mic',{s:34})}</button><div class="ptt-lbl" id="pttl" aria-live="polite">${A.transcribing?'Transcribiendo…':A.busy?'Esperando respuesta…':'MANTÉN PARA HABLAR'}</div></div>
       <button class="roundbtn" data-act="mode" data-m="text" aria-label="Escribir">${I('kb')}<small>Escribir</small></button></div>`;
     bindPTT();
   } else {
@@ -386,44 +400,74 @@ function renderComposer(){
 function heardHTML(){ const h=CUR.heard; return `<div class="heard"><div class="t-cap">Revisa lo que entendí${h.sim?' · simulado':''}</div><div class="ja mt1">${esc(h.text)}</div>${G.user.layers.ro?(h.m?`<div class="ro">${romajiOf(h.m)}</div>`:(/[ぁ-ん]/.test(h.text)&&!/[\u4e00-\u9fff]/.test(h.text)?`<div class="ro">${esc(kanaToRomaji(h.text))}</div>`:'')):''}${h.sim?'<p class="t-sm faint mt1">Transcripción simulada con una frase de práctica. Puedes enviarla o cambiar a Escribir.</p>':''}<div class="row mt3"><button class="btn btn-ghost btn-sm" data-act="reRec">${I('refresh',{s:16})} Grabar de nuevo</button><button class="btn btn-primary btn-sm grow" data-act="sendHeard">Enviar</button></div></div>`; }
 function bindInput(ci,onSend){
   const prev=$('#kprev');
+  let composing=false;
   const upd=()=>{ resetIdle(); const v=ci.value; if(prev){ prev.innerHTML=(G.user.conv&&/[a-z]/i.test(v)&&!isSpanish(v))?`<span class="jp" style="color:var(--ink-2);font-weight:800">→ ${esc(toDisplay(v,true))}</span> <button class="link t-sm" data-act="convOff" style="margin-left:6px">Desactivar</button>`:''; } };
   ci.addEventListener('input',upd);
+  ci.addEventListener('compositionstart',()=>{ composing=true; });
+  ci.addEventListener('compositionend',()=>{ setTimeout(()=>{ composing=false; },0); });
   ci.addEventListener('focus',()=>{ app.querySelector('.act-screen')?.classList.add('compact'); setTimeout(layoutStage,380); });
   ci.addEventListener('blur',()=>{ setTimeout(()=>{ app.querySelector('.act-screen')?.classList.remove('compact'); setTimeout(layoutStage,380); },150); });
-  $('#cf').addEventListener('submit',e=>{ e.preventDefault(); const v=ci.value; if(!v.trim()||CUR?.busy) return; ci.value=''; upd(); onSend(v); ci.focus(); });
+  $('#cf').addEventListener('submit',e=>{ e.preventDefault(); const v=ci.value; if(composing||activeTour||!v.trim()||CUR?.busy) return; ci.value=''; upd(); onSend(v); ci.focus(); });
   upd();
 }
 
 /* ----- Voz: mantener para hablar ----- */
 function bindPTT(){
   const b=$('#ptt'); if(!b) return;
-  b.addEventListener('pointerdown',e=>{ e.preventDefault(); try{b.setPointerCapture(e.pointerId)}catch(_){} startRec(); });
-  ['pointerup','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>stopRec()));
+  let pointer=null;
+  b.addEventListener('pointerdown',e=>{
+    if(e.button!==0||pointer!==null||!startRec()) return;
+    e.preventDefault(); pointer=e.pointerId;
+    try{ b.setPointerCapture(pointer); }catch{}
+  });
+  b.addEventListener('pointerup',e=>{ if(e.pointerId===pointer){ pointer=null; stopRec(); } });
+  for(const type of ['pointercancel','lostpointercapture']){
+    b.addEventListener(type,e=>{ if(e.pointerId===pointer){ pointer=null; cancelRec(); } });
+  }
   b.addEventListener('keydown',e=>{ if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();startRec();} });
-  b.addEventListener('keyup',e=>{ if(e.key===' '||e.key==='Enter'){e.preventDefault();stopRec();} });
+  b.addEventListener('keyup',e=>{ if(e.key===' '||e.key==='Enter'){e.preventDefault();if(pointer===null) stopRec();} });
+  b.addEventListener('blur',()=>{ if(pointer===null) cancelRec(); });
 }
 function startRec(){
-  const A=CUR; if(A.recording||A.busy) return; resetIdle(); closeNudge();
-  A.recording=true; A.recText=''; const id=++A.recId; A.curRec=id;
-  $('#ptt')?.classList.add('rec'); const l=$('#pttl'); if(l) l.textContent='SUELTA PARA SIMULAR LA VOZ';
+  const A=CUR; if(!A||activeTour||A.recording||A.transcribing||A.busy||A.S?.ended) return false;
+  closeNudge();
+  A.recording=true; A.curRec=++A.recId; resetIdle();
+  $('#ptt')?.classList.add('rec'); const l=$('#pttl'); if(l) l.textContent='Escuchando…';
   if('speechSynthesis' in window) try{speechSynthesis.cancel()}catch(e){}
+  return true;
+}
+function cancelRec(){
+  if(!CUR?.recording) return;
+  CUR.recording=false;
+  CUR.curRec=null;
+  renderComposer();
+  resetIdle();
 }
 function stopRec(){
   const A=CUR;
   if(!A||!A.recording) return;
   A.recording=false;
-  $('#ptt')?.classList.remove('rec');
+  A.transcribing=true;
+  renderComposer();
   finishRec(A, A.curRec);
 }
 async function finishRec(A,id){
   const sample=A.kind==='act'?hintFor(A.S).ph:chatSuggestion();
   try{
     const heard=await conversation.transcribe({sample, scenario:A.kind});
-    if(CUR!==A || A.curRec!==id || G.user.mode!=='voice') return;
-    A.heard=heard; renderComposer();
+    if(CUR!==A || A.curRec!==id) return;
+    A.transcribing=false;
+    const text=heard?.text?.trim();
+    if(!text){ renderComposer(); toast('No se detectó voz. Intenta otra vez o escribe tu respuesta.'); return; }
+    if(A.kind==='act') sendAct(text,'voice');
+    else { A.heard=heard; renderComposer(); }
   }catch{
-    if(CUR!==A) return;
-    G.user.mode='text'; save(); renderComposer(); toast('Puedes continuar por escrito.');
+    if(CUR!==A||A.curRec!==id) return;
+    A.transcribing=false;
+    renderComposer();
+    toast('No se pudo transcribir. Intenta otra vez o escribe tu respuesta.');
+  }finally{
+    if(CUR===A) resetIdle();
   }
 }
 
@@ -483,7 +527,7 @@ function setDraft(m,es){
 }
 
 /* ----- Silencio: pista proactiva a los 20 s ----- */
-function resetIdle(){ const A=CUR; if(!A||A.kind!=='act') return; clearTimeout(A.idleT); A.idleT=setTimeout(showNudge,20000); }
+function resetIdle(){ const A=CUR; if(!A||A.kind!=='act') return; clearTimeout(A.idleT); if(!activeTour&&!A.recording&&!A.transcribing&&!A.S.ended) A.idleT=setTimeout(showNudge,20000); }
 function showNudge(){ const A=CUR; if(!A||A.kind!=='act'||A.S.ended||app.querySelector('.ovl')||A.busy) return resetIdle();
   const c=$('#cmp'); if(!c||c.querySelector('.sofia-nudge')) return;
   c.insertAdjacentHTML('beforeend',`<div class="sofia-nudge"><div class="mini-av"><img src="${IMG.sofia}" alt=""></div><span class="t">¿Quieres una pista?</span><button class="btn btn-sm btn-secondary" style="height:32px" data-act="hint">Sí</button><button class="iconbtn" style="width:32px;height:32px" data-act="closeNudge">${I('close',{s:16})}</button></div>`); }
@@ -667,7 +711,7 @@ function sheet(title,body,id){
   s.insertAdjacentHTML('beforeend',`<div class="ovl" data-sheet="${id||''}" data-act="ovl"><div class="sheet" role="dialog" aria-label="${esc(title)}"><div class="grab"></div><div class="sheet-hd"><div class="t-h2">${title}</div><button class="iconbtn" data-act="closeSheet" aria-label="Cerrar">${I('close')}</button></div><div class="sheet-bd">${body}</div></div></div>`);
   applyLayers();
 }
-function closeSheet(instant){ app.querySelectorAll('.ovl').forEach(o=>o.remove()); if(CUR&&CUR.kind==='act') resetIdle(); }
+function closeSheet(){ app.querySelectorAll('.ovl').forEach(o=>o.remove()); resetIdle(); }
 function modal(html){ closeSheet(); app.querySelector('.screen').insertAdjacentHTML('beforeend',`<div class="ovl center" data-act="ovl"><div class="modal">${html}</div></div>`); }
 function wordSheet(t){
   const s=surf(t).replace(/[、。！？]/g,''), k=readT(t).replace(/[、。！？]/g,''), clean=t.replace(/[、。！？]/g,'');
@@ -686,6 +730,7 @@ function layersSheet(){
     <button class="tgl ${u.conv?'on':''}" data-act="pref" data-k="conv"><span class="grow"><b>Romaji → kana al escribir</b><br><span class="t-sm muted">«hitori desu» se envía como ひとりです</span></span><span class="sw"></span></button>
     <button class="tgl ${u.dev?'on':''}" data-act="pref" data-k="dev"><span class="grow"><b>Modo desarrollo</b><br><span class="t-sm muted">Ver el JSON que devolvería el backend</span></span><span class="sw"></span></button>
     ${u.dev&&CUR&&CUR.last?`<button class="btn btn-ghost" data-act="showJson">${I('code',{s:20})} Ver JSON del último turno</button>`:''}
+    ${CUR?.kind==='act'?`<button class="btn btn-lav" data-act="restaurantGuide">Ver guía del restaurante</button>`:''}
    </div>`;
   sheet('Ayudas de lectura',body,'layers');
 }
@@ -694,6 +739,8 @@ function layersSheet(){
    ACCIONES (delegación de eventos)
    ========================================================= */
 const ACT={
+  practiceGuide:button=>startTour('practice',button),
+  restaurantGuide:button=>startTour('restaurant',button),
   go:a=>go(a.dataset.to), back:()=>back(), toast:a=>toast(a.dataset.t),
   say:a=>speak(decodeURIComponent(a.dataset.m),!!a.dataset.slow,a),
   haveAccount:()=>{ if(G.registered) go('home'); else { toast('No hay sesión guardada en este navegador: entra como invitado.'); go('login'); } },
@@ -709,7 +756,12 @@ const ACT={
   startScenario:()=>{ G.resume=null; save(); go('activity',{}); },
   resume:()=>{ if(G.resume) go('activity',{resume:true}); else go('ficha'); },
   setMode:a=>{ G.user.mode=a.dataset.m; save(); a.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('act',b===a)); },
-  mode:a=>{ G.user.mode=a.dataset.m; save(); if(CUR){CUR.heard=null;} renderComposer(); },
+  mode:a=>{
+    if(!CUR||CUR.recording||CUR.transcribing) return;
+    const input=$('#ci');
+    if(input&&CUR.kind==='act') CUR.draft=input.value;
+    G.user.mode=a.dataset.m; save(); CUR.heard=null; renderComposer();
+  },
   speed:a=>{ G.user.speed=+a.dataset.v; save(); a.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('act',b===a)); },
   notif:a=>{ G.user.notif=!G.user.notif; save(); a.classList.toggle('on'); },
   pref:a=>{ const k=a.dataset.k; G.user[k]=!G.user[k]; save(); if(k==='dev') layersSheet(); else a.classList.toggle('on'); },
@@ -738,7 +790,7 @@ const ACT={
   openCarta:()=>openCarta(),
   dish:a=>openDish(a.dataset.id),
   hs:a=>{ const k=a.dataset.a, S=CUR.S; app.querySelector('.viewer')?.remove();
-    if(k==='repeat'){ if(S.lastW) speak(S.lastW.m); toast('Repitiendo el último mensaje'); }
+    if(k==='repeat'){ const latest=S.msgs[lastWaiterIdx()]; if(latest) speak(latest.m); }
     if(k==='menu') openCarta();
     if(k==='dish'&&S.ordered) openDish(S.ordered.id);
     if(k==='note-water') pushMsg({t:'sofia',text:NOTES.water});
@@ -762,12 +814,13 @@ const ACT={
 };
 
 document.addEventListener('click',e=>{
+  if(tourClick(e)) return;
   const w=e.target.closest('.w');
   if(w&&!e.target.closest('[data-nowords]')&&!e.target.closest('.dish')){ e.stopPropagation(); wordSheet(decodeURIComponent(w.dataset.w)); return; }
   const a=e.target.closest('[data-act]'); if(!a) return;
   const fn=ACT[a.dataset.act]; if(fn){ fn(a,e); }
 });
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(app.querySelector('.viewer')) ACT.closeViewer(); else closeSheet(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(CUR?.recording) cancelRec(); else if(app.querySelector('.viewer')) ACT.closeViewer(); else closeSheet(); } });
 
 /* Arranque */
 G.registered?go('home',{tab:'practice'},false):go('splash',{},false);
